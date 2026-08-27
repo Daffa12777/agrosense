@@ -1,0 +1,81 @@
+{
+  "NUM": [
+    "N_ppm",
+    "P_ppm",
+    "K_ppm",
+    "soil_moisture",
+    "soil_ph",
+    "temperature",
+    "humidity",
+    "rainfall"
+  ],
+  "CAT": [
+    "soil_type",
+    "crop"
+  ],
+  "classes": [
+    "KCl",
+    "Kapur-Dolomit",
+    "NPK-16-16-16",
+    "None",
+    "Organik",
+    "SP-36",
+    "Urea"
+  ],
+  "soil_types": [
+    "Clay",
+    "Loamy",
+    "Peat",
+    "Sandy",
+    "Silt"
+  ],
+  "crops": [
+    "chili",
+    "maize",
+    "rice",
+    "shallot",
+    "tomato"
+  ],
+  "num_ranges": {
+    "N_ppm": [
+      0.0,
+      541.6,
+      59.98
+    ],
+    "P_ppm": [
+      0.0,
+      110.26,
+      34.98
+    ],
+    "K_ppm": [
+      0.0,
+      138.17,
+      44.88
+    ],
+    "soil_moisture": [
+      5.0,
+      98.0,
+      45.015
+    ],
+    "soil_ph": [
+      3.5,
+      9.0,
+      6.3
+    ],
+    "temperature": [
+      10.0,
+      44.0,
+      27.98
+    ],
+    "humidity": [
+      23.71,
+      100.0,
+      75.01
+    ],
+    "rainfall": [
+      0.01,
+      450.0,
+      62.59
+    ]
+  }
+}
