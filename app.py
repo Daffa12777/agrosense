@@ -227,7 +227,7 @@ if st.button("Dapatkan Rekomendasi"):
     st.write("**Alternatif pupuk:**")
     for idx, (name, p) in enumerate(top3, 1):
         st.markdown(
-            f'<div class="alt-row"><div class="alt-label">{nice_fert(name)} — {p*100:.0f}%</div>'
+            f'<div class="alt-row"><div class="alt-label">{nice_fert(name)} {p*100:.0f}%</div>'
             f'<div class="alt-track"><div class="alt-fill alt-{idx}" style="width:{p*100:.0f}%"></div></div></div>',
             unsafe_allow_html=True)
 
