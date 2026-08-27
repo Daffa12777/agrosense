@@ -1,11 +1,9 @@
-# scikit-learn WAJIB pin sama dgn versi training (joblib load compat)
-scikit-learn==1.8.0
+scikit-learn==1.6.1
 pytorch-tabnet==4.1.0
 streamlit>=1.36
 pandas>=2.2
 numpy>=1.26
 joblib>=1.4
 xgboost>=2.1
-# torch CPU-only (ringan, hemat RAM di Streamlit Cloud)
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch
