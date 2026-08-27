@@ -14,6 +14,7 @@ st.markdown("""
 :root {
     --orange: #f26419; --orange-soft: #f79256; --teal: #2a9d8f;
     --bg: #ffffff; --card: #fbf7f3; --border: #ececec; --text: #1a1a1a; --muted: #6b6b6b;
+    --warn-bg: #fff4e6; --warn-border: #f7c59f;
 }
 .stApp {background: var(--bg);}
 html, body, [class*="css"], .stApp, input, button, select, textarea {
@@ -48,6 +49,14 @@ div[data-testid="stMetricDelta"] svg {display:none;}
     background: var(--orange); color: #ffffff; border: none; font-size: 1rem;
 }
 .stButton>button:hover {background: var(--orange-soft); color:#ffffff;}
+.saran-box {background: var(--card); border:1px solid var(--border);
+    border-left:4px solid var(--teal); border-radius:12px; padding:16px 18px; margin:6px 0 14px 0;}
+.saran-box p {margin:0; font-size:0.95rem; line-height:1.5;}
+.dosis-tag {display:inline-block; background:var(--orange); color:#fff; font-weight:600;
+    font-size:0.82rem; padding:3px 10px; border-radius:6px; margin-top:8px;}
+.warn-item {background:var(--warn-bg); border:1px solid var(--warn-border);
+    border-radius:8px; padding:9px 12px; margin:6px 0; font-size:0.86rem; color:#8a4b1e;}
+.warn-item span {color:#8a4b1e !important;}
 .alt-row {margin:12px 0;}
 .alt-label {font-size:0.88rem; color:var(--text); margin-bottom:4px; font-weight:500;}
 .alt-track {height:14px; background:#f0ede9; border-radius:5px; overflow:hidden;}
@@ -81,6 +90,12 @@ FEAT_ID = {
 }
 FERT_LABEL = {"None":"Tidak perlu pupuk","Organik":"Pupuk Organik","Kapur-Dolomit":"Kapur Dolomit"}
 def nice_fert(name): return FERT_LABEL.get(name, name)
+
+# dosis perkiraan (kg/ha) - acuan kasar, WAJIB diverifikasi penyuluh
+DOSIS = {"Urea":200,"SP-36":150,"KCl":100,"NPK-16-16-16":300,
+         "Kapur-Dolomit":1500,"Organik":2000,"None":0}
+LUAS_HA = 0.25
+LUAS_M2 = 2500
 
 @st.cache_resource
 def load_all():
@@ -122,17 +137,54 @@ def render_xai(pairs, fill_cls, pct_cls):
             f'<div class="xai-pct {pct_cls}">{frac*100:.0f}%</div></div>',
             unsafe_allow_html=True)
 
+def build_advice(vals, fert, mm):
+    ph = vals.get("soil_ph"); m = vals.get("soil_moisture")
+    n = vals.get("N_ppm"); p = vals.get("P_ppm"); k = vals.get("K_ppm"); t = vals.get("temperature")
+    warns = []
+    if ph is not None and ph < 5.0:
+        warns.append("pH tanah asam (di bawah 5.0). Lakukan pengapuran lebih dulu sebelum pupuk lain agar hara terserap optimal.")
+    elif ph is not None and ph > 7.8:
+        warns.append("pH tanah terlalu basa (di atas 7.8). Sebagian hara sulit terserap; pertimbangkan penambahan bahan organik.")
+    if m is not None and m < 25:
+        warns.append("Kelembapan tanah sangat rendah (di bawah 25%). Tanaman berisiko stres kering.")
+    elif m is not None and m > 80:
+        warns.append("Kelembapan tanah sangat tinggi (di atas 80%). Hati-hati genangan dan busuk akar; kurangi penyiraman.")
+    if t is not None and t > 36:
+        warns.append("Suhu sangat tinggi (di atas 36 C). Lakukan penyiraman pagi atau sore, hindari siang hari.")
+    if n is not None and n < 35: warns.append("Nitrogen rendah. Pertumbuhan daun dapat terhambat.")
+    if p is not None and p < 20: warns.append("Fosfor rendah. Perakaran dan pembungaan dapat terganggu.")
+    if k is not None and k < 25: warns.append("Kalium rendah. Ketahanan tanaman terhadap penyakit menurun.")
+
+    dos = DOSIS.get(fert, 0)
+    dosis_txt = None
+    if dos > 0:
+        dosis_txt = f"Perkiraan dosis: {dos} kg/ha (sekitar {dos*LUAS_HA:.0f} kg untuk lahan 0,25 ha)"
+
+    liter = mm * LUAS_M2
+    if mm < 1:
+        irr_txt = f"Kebutuhan air rendah ({mm:.2f} mm). Tanah masih cukup lembap, penyiraman dapat ditunda."
+    else:
+        irr_txt = f"Siram sekitar {mm:.2f} mm (kurang lebih {liter:.0f} liter untuk 0,25 ha), sebaiknya pagi hari."
+
+    if fert == "None":
+        narasi = f"Kondisi hara tanah tercukupi, tidak perlu pemupukan saat ini. {irr_txt}"
+    else:
+        narasi = f"Disarankan pemberian {nice_fert(fert)}. {irr_txt}"
+    return narasi, dosis_txt, warns
+
 def recommend(payload):
     row = pd.DataFrame([{**{c: np.nan for c in NUM + CAT}, **payload}])[NUM + CAT]
     Xf = to_dense(pre_f.transform(row))
     Xi = to_dense(pre_i.transform(row))
     proba = tab_f.predict_proba(Xf)[0]
     j = int(proba.argmax())
-    mm = float(tab_i.predict(Xi).ravel()[0])
-    top3 = [(le.classes_[k], float(proba[k])) for k in proba.argsort()[::-1][:3]]
+    mm = max(float(tab_i.predict(Xi).ravel()[0]), 0.0)
+    fert = le.classes_[j]
+    top3 = [(le.classes_[q], float(proba[q])) for q in proba.argsort()[::-1][:3]]
     xai_f = explain(tab_f, pre_f, Xf)
     xai_i = explain(tab_i, pre_i, Xi)
-    return le.classes_[j], float(proba[j]), max(mm, 0.0), top3, xai_f, xai_i
+    narasi, dosis_txt, warns = build_advice(payload, fert, mm)
+    return fert, float(proba[j]), mm, top3, xai_f, xai_i, narasi, dosis_txt, warns
 
 st.title("AgroSense LoRa-X")
 st.markdown('<div class="accent"></div>', unsafe_allow_html=True)
@@ -153,11 +205,24 @@ vals["crop"]      = c2.selectbox("Tanaman", meta["crops"])
 
 st.write("")
 if st.button("Dapatkan Rekomendasi"):
-    fert, conf, mm, top3, xai_f, xai_i = recommend(vals)
+    fert, conf, mm, top3, xai_f, xai_i, narasi, dosis_txt, warns = recommend(vals)
     st.divider()
+
     m1, m2 = st.columns(2)
     m1.metric("Rekomendasi Pupuk", nice_fert(fert), f"{conf*100:.0f}% keyakinan")
     m2.metric("Kebutuhan Irigasi", f"{mm:.2f} mm/hari", f"~{mm*2500:.0f} L untuk 0,25 ha")
+
+    st.write("")
+    st.markdown("### Rekomendasi Tindakan")
+    dosis_html = f'<div class="dosis-tag">{dosis_txt}</div>' if dosis_txt else ""
+    st.markdown(f'<div class="saran-box"><p>{narasi}</p>{dosis_html}</div>',
+                unsafe_allow_html=True)
+
+    if warns:
+        st.markdown("### Peringatan Kondisi Lahan")
+        for w in warns:
+            st.markdown(f'<div class="warn-item"><span>{w}</span></div>', unsafe_allow_html=True)
+
     st.write("")
     st.write("**Alternatif pupuk:**")
     for idx, (name, p) in enumerate(top3, 1):
@@ -165,6 +230,7 @@ if st.button("Dapatkan Rekomendasi"):
             f'<div class="alt-row"><div class="alt-label">{nice_fert(name)} — {p*100:.0f}%</div>'
             f'<div class="alt-track"><div class="alt-fill alt-{idx}" style="width:{p*100:.0f}%"></div></div></div>',
             unsafe_allow_html=True)
+
     st.write("")
     st.markdown("### Penjelasan (Explainable AI)")
     st.caption("Fitur yang paling memengaruhi rekomendasi ini.")
@@ -175,6 +241,7 @@ if st.button("Dapatkan Rekomendasi"):
     with xc2:
         st.markdown("**Faktor Irigasi**")
         render_xai(xai_i, "xai-fill-b", "xai-pct-b")
-    st.markdown('<p class="result-note">Model dilatih pada data sintetis untuk '
-                'validasi pipeline. Angka bukan hasil pengukuran lapangan.</p>',
-                unsafe_allow_html=True)
+
+    st.markdown('<p class="result-note">Dosis bersifat perkiraan dan wajib disesuaikan dengan '
+                'rekomendasi penyuluh setempat. Model dilatih pada data sintetis untuk validasi '
+                'pipeline; angka bukan hasil pengukuran lapangan.</p>', unsafe_allow_html=True)
