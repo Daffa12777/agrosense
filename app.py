@@ -8,75 +8,181 @@ from pytorch_tabnet.tab_model import TabNetClassifier, TabNetRegressor
 st.set_page_config(page_title="AgroSense LoRa-X", layout="centered",
                    initial_sidebar_state="collapsed")
 
+# =========================================================
+#  STYLE  (cream / putih / hijau tua). CSS keyframes only.
+# =========================================================
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-:root {
-    --orange: #f26419; --orange-soft: #f79256; --teal: #2a9d8f;
-    --bg: #ffffff; --card: #fbf7f3; --border: #ececec; --text: #1a1a1a; --muted: #6b6b6b;
-    --warn-bg: #fff4e6; --warn-border: #f7c59f;
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,ital,wght@9..144,0,500;9..144,0,600;9..144,0,700;9..144,1,500;9..144,1,600&family=Inter:wght@400;500;600;700;800&display=swap');
+:root{
+  --cream:#f4efe3; --cream2:#eae3d2; --white:#ffffff;
+  --green:#123529; --green-deep:#0e2a20; --green2:#2f6b4f; --sage:#7a9a86;
+  --text:#182219; --muted:#6b7268; --muted2:#9aa093;
+  --line:#e3dcc9; --line-soft:#efe9db;
+  --warn-bg:#efe8d6; --warn-line:#d9c9a2; --warn:#6f5622;
+  --eo:cubic-bezier(.23,1,.32,1); --eio:cubic-bezier(.77,0,.175,1);
 }
-.stApp {background: var(--bg);}
-html, body, [class*="css"], .stApp, input, button, select, textarea {
-    font-family: 'Inter', sans-serif !important; color: var(--text);
+.stApp{background:var(--cream);}
+html,body,[class*="css"],.stApp,input,button,select,textarea{
+  font-family:'Inter',system-ui,sans-serif !important; color:var(--text);
 }
-#MainMenu, footer {visibility: hidden;}
-.block-container {padding-top: 2.5rem; max-width: 780px;}
-h1 {font-weight: 800; letter-spacing: -0.02em; color: var(--text);}
-h2, h3 {color: var(--text); font-weight: 700;}
-p, span, label, .stMarkdown {color: var(--text) !important;}
-.stCaption, [data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] p {color: var(--muted) !important;}
-.accent {height:4px; width:64px; background:var(--orange); border-radius:3px; margin:10px 0 4px 0;}
-hr {border-color: var(--border) !important;}
+#MainMenu,footer,header[data-testid="stHeader"]{visibility:hidden; height:0;}
+::selection{background:var(--green2); color:#fff;}
+.block-container{
+  padding-top:1.3rem; padding-bottom:3.4rem; max-width:840px;
+  animation:pageUp .8s var(--eo) both;
+}
+@keyframes pageUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+h1,h2,h3,h4{color:var(--text); letter-spacing:-.02em;}
+p,span,label,li,.stMarkdown{color:var(--text) !important;}
+.stCaption,[data-testid="stCaptionContainer"],[data-testid="stCaptionContainer"] p{color:var(--muted) !important;}
+hr{border:none; border-top:1px solid var(--line) !important; margin:1.6rem 0 .4rem;}
+
+/* ---------- HERO ---------- */
+.hero{
+  position:relative; overflow:hidden; border-radius:28px;
+  background:radial-gradient(130% 150% at 88% 15%, #205a42 0%, #16412f 38%, var(--green) 62%, var(--green-deep) 100%);
+  color:#fff; padding:58px 46px 60px; margin:4px 0 34px;
+  box-shadow:0 34px 74px -46px rgba(18,53,41,.75);
+  animation:heroIn 1s var(--eo) both;
+}
+@keyframes heroIn{from{opacity:0;transform:translateY(20px) scale(.99)}to{opacity:1;transform:none}}
+.hero .glow{position:absolute; top:-30%; right:-6%; width:60%; height:150%;
+  background:radial-gradient(circle, rgba(122,154,134,.28), transparent 60%); filter:blur(14px); pointer-events:none;}
+.hero .topo{
+  position:absolute; inset:0; pointer-events:none; opacity:.55;
+  background:repeating-radial-gradient(circle at 84% 44%, rgba(255,255,255,.06) 0 1px, transparent 1px 34px);
+  -webkit-mask-image:radial-gradient(circle at 84% 44%, #000 0%, transparent 72%);
+          mask-image:radial-gradient(circle at 84% 44%, #000 0%, transparent 72%);
+}
+/* emitting signal rings */
+.hero .rings{position:absolute; top:50%; right:9%; transform:translateY(-50%); width:330px; height:330px; pointer-events:none;}
+.hero .rings s{position:absolute; inset:0; margin:auto; border-radius:50%; border:1px solid rgba(160,200,178,.4); animation:emit 4.8s linear infinite; display:block;}
+.hero .rings s:nth-child(2){animation-delay:1.2s}
+.hero .rings s:nth-child(3){animation-delay:2.4s}
+.hero .rings s:nth-child(4){animation-delay:3.6s}
+.hero .rings b{position:absolute; inset:0; margin:auto; width:11px; height:11px; border-radius:50%; background:#bfe0cf; box-shadow:0 0 28px 8px rgba(160,200,178,.6);}
+@keyframes emit{0%{width:9%;height:9%;opacity:0}9%{opacity:.85}100%{width:100%;height:100%;opacity:0}}
+@media(max-width:680px){.hero .rings{display:none}}
+
+.hero .eyebrow{position:relative; display:inline-flex; align-items:center; gap:10px; font-size:.8rem; font-weight:600; color:rgba(214,228,220,.9) !important; margin-bottom:22px; letter-spacing:.01em;}
+.hero .eyebrow .bar{width:26px; height:1px; background:var(--sage);}
+.hero h1{position:relative; font-family:'Fraunces',serif; font-weight:600; font-size:3.05rem; line-height:1.03; color:#fff !important; letter-spacing:-.015em;}
+.hero h1 .soft{color:rgba(191,224,207,.85) !important; font-style:italic; font-weight:500;}
+.hero .lead{position:relative; margin-top:22px; max-width:42ch; font-size:1.05rem; line-height:1.6; color:rgba(233,240,234,.82) !important;}
+.hbadges{position:relative; display:flex; gap:9px; margin-top:30px; flex-wrap:wrap;}
+.hbadge{background:rgba(255,255,255,.09); border:1px solid rgba(255,255,255,.18); color:rgba(240,246,242,.92) !important;
+  font-size:.78rem; font-weight:600; padding:8px 15px; border-radius:999px; backdrop-filter:blur(4px);}
+@media(max-width:640px){.hero{padding:42px 26px 46px} .hero h1{font-size:2.2rem}}
+
+/* ---------- section labels ---------- */
+.kick{display:inline-flex; align-items:center; gap:10px; color:var(--green2) !important; font-size:.82rem; font-weight:600; margin:8px 0 2px;}
+.kick .bar{width:22px; height:1px; background:var(--green2);}
+.sub{color:var(--muted) !important; font-size:.98rem; margin:0 0 8px;}
+
+/* ---------- INPUTS ---------- */
 div[data-testid="stNumberInput"] input,
-div[data-testid="stSelectbox"] div[data-baseweb="select"] > div {
-    background: #ffffff !important; color: var(--text) !important;
-    border: 1px solid var(--border) !important; border-radius: 8px !important;
+div[data-testid="stSelectbox"] div[data-baseweb="select"]>div{
+  background:var(--white) !important; color:var(--text) !important;
+  border:1px solid var(--line) !important; border-radius:12px !important;
+  transition:border-color .2s ease, box-shadow .2s ease;
+}
+div[data-testid="stNumberInput"] input:focus{
+  border-color:var(--green2) !important; box-shadow:0 0 0 4px rgba(47,107,79,.14) !important;
 }
 div[data-testid="stNumberInput"] label,
-div[data-testid="stSelectbox"] label {color: var(--muted) !important; font-weight:500;}
-div[data-testid="stNumberInput"] button {background: var(--card) !important; color: var(--text) !important;}
-div[data-testid="stMetric"] {
-    background: var(--card); border: 1px solid var(--border);
-    border-left: 4px solid var(--orange); border-radius: 14px; padding: 20px;
+div[data-testid="stSelectbox"] label{color:var(--muted) !important; font-weight:500;}
+div[data-testid="stNumberInput"] button{background:var(--cream2) !important; color:var(--text) !important; border-color:var(--line) !important;}
+
+/* ---------- BUTTON  (fix kontras teks) ---------- */
+.stButton>button{
+  width:100%; border-radius:14px; font-weight:700; padding:.9rem; font-size:1rem;
+  background:var(--green) !important; border:none !important;
+  transition:transform .16s var(--eo), background .25s ease, box-shadow .25s ease;
+  box-shadow:0 14px 30px -18px rgba(18,53,41,.8);
 }
-div[data-testid="stMetric"] label {color: var(--orange) !important; font-weight: 600;}
-div[data-testid="stMetricValue"] {color: var(--text) !important; font-weight: 800;}
-div[data-testid="stMetricDelta"] {color: var(--muted) !important;}
-div[data-testid="stMetricDelta"] svg {display:none;}
-.stButton>button {
-    width: 100%; border-radius: 10px; font-weight: 700; padding: 0.6rem;
-    background: var(--orange); color: #ffffff; border: none; font-size: 1rem;
+.stButton>button, .stButton>button *,
+.stButton>button p, .stButton>button div, .stButton>button span{color:#ffffff !important;}
+.stButton>button:hover{background:var(--green2) !important;}
+.stButton>button:active{transform:scale(.985);}
+.stButton>button:focus{box-shadow:0 0 0 4px rgba(47,107,79,.25) !important;}
+
+/* ---------- RESULT HEADER + CHIPS ---------- */
+.res-head{display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin:6px 0 18px; animation:rise .55s var(--eo) both;}
+.res-title{font-family:'Fraunces',serif; font-size:1.5rem; font-weight:600; letter-spacing:-.01em;}
+.chips{display:flex; gap:8px; flex-wrap:wrap;}
+.chip{background:var(--white); border:1px solid var(--line); border-radius:999px; padding:6px 13px; font-size:.8rem; color:var(--green2) !important; font-weight:600;}
+
+/* ---------- METRIC CARDS ---------- */
+.metrics{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:6px;}
+@media(max-width:600px){.metrics{grid-template-columns:1fr}}
+.metric{
+  position:relative; background:var(--white); border:1px solid var(--line);
+  border-radius:20px; padding:22px 24px; display:flex; align-items:center; gap:16px;
+  box-shadow:0 20px 44px -34px rgba(18,53,41,.4);
+  animation:rise .6s var(--eo) both;
 }
-.stButton>button:hover {background: var(--orange-soft); color:#ffffff;}
-.saran-box {background: var(--card); border:1px solid var(--border);
-    border-left:4px solid var(--teal); border-radius:12px; padding:16px 18px; margin:6px 0 14px 0;}
-.saran-box p {margin:0; font-size:0.95rem; line-height:1.5;}
-.dosis-tag {display:inline-block; background:var(--orange); color:#fff; font-weight:600;
-    font-size:0.82rem; padding:3px 10px; border-radius:6px; margin-top:8px;}
-.warn-item {background:var(--warn-bg); border:1px solid var(--warn-border);
-    border-radius:8px; padding:9px 12px; margin:6px 0; font-size:0.86rem; color:#8a4b1e;}
-.warn-item span {color:#8a4b1e !important;}
-.alt-row {margin:12px 0;}
-.alt-label {font-size:0.88rem; color:var(--text); margin-bottom:4px; font-weight:500;}
-.alt-track {height:14px; background:#f0ede9; border-radius:5px; overflow:hidden;}
-.alt-fill {height:100%; border-radius:5px;}
-.alt-1 {background:var(--orange);}
-.alt-2 {background:var(--orange-soft);}
-.alt-3 {background:#c9c2ba;}
-.xai-row {display:flex; align-items:center; gap:10px; margin:7px 0;}
-.xai-name {width:150px; font-size:0.85rem; color:var(--text);}
-.xai-bar {flex:1; height:18px; background:#f0ede9; border-radius:5px; overflow:hidden;}
-.xai-fill-a {height:100%; background:var(--orange); border-radius:5px;}
-.xai-fill-b {height:100%; background:var(--teal); border-radius:5px;}
-.xai-pct {width:48px; text-align:right; font-size:0.82rem; font-weight:600;}
-.xai-pct-a {color:var(--orange);}
-.xai-pct-b {color:var(--teal);}
-.result-note {color:var(--muted); font-size:0.82rem; margin-top:1.2rem;
-    border-top:1px solid var(--border); padding-top:0.8rem;}
+.metric:nth-child(2){animation-delay:.08s;}
+.metric .mc{flex:1; min-width:0;}
+.metric .k{font-size:.76rem; font-weight:600; color:var(--green2) !important; letter-spacing:.02em;}
+.metric .v{font-family:'Fraunces',serif; font-size:1.7rem; font-weight:600; letter-spacing:-.01em; margin-top:8px; line-height:1.05; color:var(--text) !important;}
+.metric .v .unit{font-family:'Inter'; font-size:.92rem; font-weight:500; color:var(--muted) !important;}
+.metric .s{font-size:.83rem; color:var(--muted) !important; margin-top:8px;}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+/* confidence donut */
+.donut{position:relative; width:76px; height:76px; flex-shrink:0; border-radius:50%;
+  background:conic-gradient(var(--green2) calc(var(--p)*1%), var(--cream2) 0);
+  display:grid; place-items:center; animation:pop .7s var(--eo) both;}
+.donut::after{content:""; position:absolute; width:57px; height:57px; border-radius:50%; background:var(--white);}
+.donut .dl{position:relative; z-index:1; font-family:'Fraunces',serif; font-size:1.02rem; font-weight:600; color:var(--green) !important;}
+@keyframes pop{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:scale(1)}}
+
+/* water level chip inside irrigation card */
+.wlevel{width:76px; height:76px; flex-shrink:0; border-radius:18px; overflow:hidden; position:relative; background:var(--cream); border:1px solid var(--line); animation:pop .7s var(--eo) .05s both;}
+.wlevel .fillw{position:absolute; left:0; right:0; bottom:0; height:var(--w); background:linear-gradient(180deg,var(--sage),var(--green2)); animation:growH .9s var(--eo);}
+@keyframes growH{from{height:0}to{height:var(--w)}}
+
+/* ---------- blocks ---------- */
+.blk{font-family:'Fraunces',serif; font-size:1.12rem; font-weight:600; margin:30px 0 13px; letter-spacing:-.01em;}
+.advice{background:var(--white); border:1px solid var(--line); border-left:4px solid var(--green2); border-radius:16px; padding:18px 20px; animation:rise .6s var(--eo) .05s both;}
+.advice p{margin:0; font-size:.98rem; line-height:1.65;}
+.dose{display:inline-block; margin-top:12px; background:var(--green); color:#fff !important; font-weight:600; font-size:.82rem; padding:6px 13px; border-radius:9px;}
+
+.warn{background:var(--warn-bg); border:1px solid var(--warn-line); border-radius:12px; padding:12px 15px; margin:8px 0; font-size:.9rem; color:var(--warn) !important; line-height:1.55; display:flex; gap:11px; align-items:flex-start; animation:rise .5s var(--eo) both;}
+.warn span{color:var(--warn) !important;}
+.warn svg{flex-shrink:0; margin-top:2px;}
+
+/* alternatives */
+.alt{display:flex; align-items:center; gap:14px; margin:12px 0; animation:rise .5s var(--eo) both;}
+.alt .rank{width:26px; height:26px; flex-shrink:0; border-radius:8px; background:var(--cream2); color:var(--green) !important; font-weight:700; font-size:.82rem; display:grid; place-items:center;}
+.alt .body{flex:1;}
+.alt .top{display:flex; justify-content:space-between; font-size:.9rem; margin-bottom:6px;}
+.alt .nm{font-weight:600;}
+.alt .pc{color:var(--muted) !important; font-weight:600;}
+.track{height:12px; background:var(--cream2); border-radius:6px; overflow:hidden;}
+.track .fill{height:100%; border-radius:6px; width:var(--w); animation:grow 1s var(--eo);}
+.f1{background:var(--green)} .f2{background:var(--green2)} .f3{background:var(--sage)}
+@keyframes grow{from{width:0}to{width:var(--w)}}
+
+/* XAI */
+.xai-grid{display:grid; grid-template-columns:1fr 1fr; gap:32px;}
+@media(max-width:600px){.xai-grid{grid-template-columns:1fr; gap:22px}}
+.xai h4{font-size:.86rem; font-weight:700; margin:0 0 14px; color:var(--green) !important;}
+.xrow{display:flex; align-items:center; gap:11px; margin:10px 0;}
+.xrow .xn{width:118px; font-size:.82rem;}
+.xrow .xb{flex:1; height:14px; background:var(--cream2); border-radius:5px; overflow:hidden;}
+.xrow .xf{height:100%; border-radius:5px; width:var(--w); animation:grow 1s var(--eo);}
+.xa{background:var(--green)} .xt{background:var(--green2)}
+.xrow .xp{width:38px; text-align:right; font-size:.8rem; font-weight:600; color:var(--green2) !important;}
+
+.disclaimer{margin-top:26px; padding-top:16px; border-top:1px solid var(--line); font-size:.82rem; color:var(--muted2) !important; line-height:1.6;}
 </style>
 """, unsafe_allow_html=True)
 
+# =========================================================
+#  KONFIG  (identik dengan versi kamu)
+# =========================================================
 LABELS = {
     "N_ppm":"Nitrogen (ppm)","P_ppm":"Fosfor (ppm)","K_ppm":"Kalium (ppm)",
     "soil_moisture":"Kelembapan Tanah (%)","soil_ph":"pH Tanah",
@@ -91,7 +197,6 @@ FEAT_ID = {
 FERT_LABEL = {"None":"Tidak perlu pupuk","Organik":"Pupuk Organik","Kapur-Dolomit":"Kapur Dolomit"}
 def nice_fert(name): return FERT_LABEL.get(name, name)
 
-# dosis perkiraan (kg/ha) - acuan kasar, WAJIB diverifikasi penyuluh
 DOSIS = {"Urea":200,"SP-36":150,"KCl":100,"NPK-16-16-16":300,
          "Kapur-Dolomit":1500,"Organik":2000,"None":0}
 LUAS_HA = 0.25
@@ -128,14 +233,6 @@ def explain(model, pre, Xm):
     tot = sum(agg.values()) or 1.0
     agg = {k: v / tot for k, v in agg.items()}
     return sorted(agg.items(), key=lambda x: -x[1])[:5]
-
-def render_xai(pairs, fill_cls, pct_cls):
-    for name, frac in pairs:
-        st.markdown(
-            f'<div class="xai-row"><div class="xai-name">{FEAT_ID.get(name,name)}</div>'
-            f'<div class="xai-bar"><div class="{fill_cls}" style="width:{frac*100:.0f}%"></div></div>'
-            f'<div class="xai-pct {pct_cls}">{frac*100:.0f}%</div></div>',
-            unsafe_allow_html=True)
 
 def build_advice(vals, fert, mm):
     ph = vals.get("soil_ph"); m = vals.get("soil_moisture")
@@ -186,12 +283,27 @@ def recommend(payload):
     narasi, dosis_txt, warns = build_advice(payload, fert, mm)
     return fert, float(proba[j]), mm, top3, xai_f, xai_i, narasi, dosis_txt, warns
 
-st.title("AgroSense LoRa-X")
-st.markdown('<div class="accent"></div>', unsafe_allow_html=True)
-st.write("Rekomendasi pemupukan dan irigasi berbasis data sensor tanah dan lingkungan.")
-st.divider()
+# =========================================================
+#  HERO
+# =========================================================
+st.markdown("""
+<div class="hero">
+  <div class="glow"></div>
+  <div class="topo"></div>
+  <div class="rings"><s></s><s></s><s></s><s></s><b></b></div>
+  <div class="eyebrow"><span class="bar"></span>Presisi pertanian berbasis sensor</div>
+  <h1>Keputusan tepat untuk<br>setiap <span class="soft">petak lahan.</span></h1>
+  <p class="lead">Data tanah dan cuaca dibaca model TabNet & RF, lalu menjadi rekomendasi pupuk dan irigasi yang bisa dijelaskan.</p>
+  
+</div>
+""", unsafe_allow_html=True)
 
-st.subheader("Data Sensor")
+st.markdown('<div class="kick"><span class="bar"></span>Data sensor</div>', unsafe_allow_html=True)
+st.markdown('<p class="sub">Masukkan pembacaan lahan, lalu jalankan model.</p>', unsafe_allow_html=True)
+
+# =========================================================
+#  INPUTS
+# =========================================================
 vals = {}
 cols = st.columns(2)
 for i, col in enumerate(NUM):
@@ -204,44 +316,94 @@ vals["soil_type"] = c1.selectbox("Jenis Tanah", meta["soil_types"])
 vals["crop"]      = c2.selectbox("Tanaman", meta["crops"])
 
 st.write("")
-if st.button("Dapatkan Rekomendasi"):
-    fert, conf, mm, top3, xai_f, xai_i, narasi, dosis_txt, warns = recommend(vals)
-    st.divider()
+go = st.button("Dapatkan Rekomendasi")
 
-    m1, m2 = st.columns(2)
-    m1.metric("Rekomendasi Pupuk", nice_fert(fert), f"{conf*100:.0f}% keyakinan")
-    m2.metric("Kebutuhan Irigasi", f"{mm:.2f} mm/hari", f"~{mm*2500:.0f} L untuk 0,25 ha")
+# =========================================================
+#  RESULT RENDERERS
+# =========================================================
+WARN_SVG = ('<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6f5622" '
+            'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'
+            '<path d="M12 9v4M12 17h.01M10.3 3.9 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>')
 
-    st.write("")
-    st.markdown("### Rekomendasi Tindakan")
-    dosis_html = f'<div class="dosis-tag">{dosis_txt}</div>' if dosis_txt else ""
-    st.markdown(f'<div class="saran-box"><p>{narasi}</p>{dosis_html}</div>',
-                unsafe_allow_html=True)
+def html(s): st.markdown(s, unsafe_allow_html=True)
 
+def render_results(vals, fert, conf, mm, top3, xai_f, xai_i, narasi, dosis_txt, warns):
+    liter = mm * LUAS_M2
+    water_pct = min(mm / 12.0 * 100.0, 100.0)
+
+    # header + chips
+    html(f'''
+    <div class="res-head">
+      <div class="res-title">Hasil analisis lahan</div>
+      <div class="chips">
+        <span class="chip">Tanaman {vals.get("crop","")}</span>
+        <span class="chip">Tanah {vals.get("soil_type","")}</span>
+      </div>
+    </div>''')
+
+    # metric cards
+    html(f'''
+    <div class="metrics">
+      <div class="metric">
+        <div class="mc">
+          <div class="k">Rekomendasi pupuk</div>
+          <div class="v">{nice_fert(fert)}</div>
+          <div class="s">Tingkat keyakinan model</div>
+        </div>
+        <div class="donut" style="--p:{conf*100:.0f}"><span class="dl">{conf*100:.0f}%</span></div>
+      </div>
+      <div class="metric">
+        <div class="mc">
+          <div class="k">Kebutuhan irigasi</div>
+          <div class="v">{mm:.2f} <span class="unit">mm/hari</span></div>
+          <div class="s">&plusmn; {liter:.0f} liter untuk 0,25 ha</div>
+        </div>
+        <div class="wlevel"><div class="fillw" style="--w:{water_pct:.0f}%"></div></div>
+      </div>
+    </div>''')
+
+    # advice
+    dose_html = f'<span class="dose">{dosis_txt}</span>' if dosis_txt else ''
+    html(f'<div class="blk">Rekomendasi tindakan</div>'
+         f'<div class="advice"><p>{narasi}</p>{dose_html}</div>')
+
+    # warnings
     if warns:
-        st.markdown("### Peringatan Kondisi Lahan")
-        for w in warns:
-            st.markdown(f'<div class="warn-item"><span>{w}</span></div>', unsafe_allow_html=True)
+        html('<div class="blk">Peringatan kondisi lahan</div>')
+        for i, w in enumerate(warns):
+            html(f'<div class="warn" style="animation-delay:{i*0.05:.2f}s">{WARN_SVG}<span>{w}</span></div>')
 
-    st.write("")
-    st.write("**Alternatif pupuk:**")
+    # alternatives
+    html('<div class="blk">Alternatif pupuk</div>')
     for idx, (name, p) in enumerate(top3, 1):
-        st.markdown(
-            f'<div class="alt-row"><div class="alt-label">{nice_fert(name)} {p*100:.0f}%</div>'
-            f'<div class="alt-track"><div class="alt-fill alt-{idx}" style="width:{p*100:.0f}%"></div></div></div>',
-            unsafe_allow_html=True)
+        html(f'<div class="alt" style="animation-delay:{(idx-1)*0.06:.2f}s">'
+             f'<div class="rank">{idx}</div>'
+             f'<div class="body"><div class="top"><span class="nm">{nice_fert(name)}</span>'
+             f'<span class="pc">{p*100:.0f}%</span></div>'
+             f'<div class="track"><div class="fill f{idx}" style="--w:{p*100:.0f}%"></div></div></div></div>')
 
-    st.write("")
-    st.markdown("### Penjelasan (Explainable AI)")
-    st.caption("Fitur yang paling memengaruhi rekomendasi ini.")
-    xc1, xc2 = st.columns(2)
-    with xc1:
-        st.markdown("**Faktor Pupuk**")
-        render_xai(xai_f, "xai-fill-a", "xai-pct-a")
-    with xc2:
-        st.markdown("**Faktor Irigasi**")
-        render_xai(xai_i, "xai-fill-b", "xai-pct-b")
+    # XAI
+    def xrows(pairs, fill_cls):
+        out = ""
+        for name, frac in pairs:
+            out += (f'<div class="xrow"><div class="xn">{FEAT_ID.get(name,name)}</div>'
+                    f'<div class="xb"><div class="xf {fill_cls}" style="--w:{frac*100:.0f}%"></div></div>'
+                    f'<div class="xp">{frac*100:.0f}%</div></div>')
+        return out
+    html('<div class="blk">Penjelasan (Explainable AI)</div>')
+    html(f'''<div class="xai-grid">
+      <div class="xai"><h4>Faktor pupuk</h4>{xrows(xai_f,"xa")}</div>
+      <div class="xai"><h4>Faktor irigasi</h4>{xrows(xai_i,"xt")}</div>
+    </div>''')
 
-    st.markdown('<p class="result-note">Dosis bersifat perkiraan dan wajib disesuaikan dengan '
-                'rekomendasi penyuluh setempat. Model dilatih pada data sintetis untuk validasi '
-                'pipeline; angka bukan hasil pengukuran lapangan.</p>', unsafe_allow_html=True)
+    html('<p class="disclaimer">Dosis bersifat perkiraan dan wajib disesuaikan dengan '
+         'rekomendasi penyuluh setempat. Model dilatih pada data sintetis untuk validasi '
+         'pipeline; angka bukan hasil pengukuran lapangan.</p>')
+
+# =========================================================
+#  RUN
+# =========================================================
+if go:
+    res = recommend(vals)
+    st.markdown('<hr>', unsafe_allow_html=True)
+    render_results(vals, *res)
