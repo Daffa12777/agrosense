@@ -2,7 +2,7 @@
 import re
 import streamlit as st
 
-MODEL = "gemini-3.6-flash"   # ganti ke flash terbaru bila perlu; kalau salah -> otomatis fallback template
+GEMINI_MODEL = "gemini-3.6-flash"   # ganti ke flash terbaru bila perlu; kalau salah -> otomatis fallback template
 
 def _pct(frac):            # 0..1 -> int persen
     return int(round(float(frac) * 100))

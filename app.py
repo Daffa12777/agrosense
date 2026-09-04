@@ -7,6 +7,7 @@ import streamlit as st
 from pytorch_tabnet.tab_model import TabNetClassifier, TabNetRegressor
 from llm_narrator import narrate
 
+
 st.set_page_config(page_title="AgroSense LoRa-X", layout="centered",
                    initial_sidebar_state="collapsed")
 
@@ -543,7 +544,7 @@ def render_results(vals, fert, conf, mm, top3, xai_f, xai_i, narasi, dosis_txt, 
     html(f'<div class="ai-note"><span class="ai-badge">{badge}</span><p>{ai_text}</p></div>')
 
     # ---- Saran tindakan dinamis (Gemini + fallback) dengan loading skeleton ----
-    html('<div class="blk"Langkah tindakan (detail)</div>')
+    html('<div class="blk">Langkah Tindakan (detail)</div>')
     ph = st.empty()
     ph.markdown(
         '<div class="sk-wrap"><div class="sk-load"><span class="sk-dot"></span>'
