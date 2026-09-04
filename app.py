@@ -225,7 +225,7 @@ DOSIS = {"Urea":200,"SP-36":150,"KCl":100,"NPK-16-16-16":300,
 LUAS_HA = 0.25
 LUAS_M2 = 2500
 
-GEMINI_MODEL = "gemini-3.6-flash"   # ganti ke flash terbaru bila perlu
+GEMINI_MODEL = "gemini-flash-latest"   # ganti ke flash terbaru bila perlu
 
 @st.cache_resource
 def load_all():
