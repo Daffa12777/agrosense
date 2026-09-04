@@ -226,7 +226,7 @@ DOSIS = {"Urea":200,"SP-36":150,"KCl":100,"NPK-16-16-16":300,
 LUAS_HA = 0.25
 LUAS_M2 = 2500
 
-GEMINI_MODEL = "gemini-3.6-flash"   # ganti ke flash terbaru bila perlu
+GEMINI_MODEL = "gemini-3.8-flash"   # ganti ke flash terbaru bila perlu
 
 @st.cache_resource
 def load_all():
@@ -537,11 +537,19 @@ def render_results(vals, fert, conf, mm, top3, xai_f, xai_i, narasi, dosis_txt, 
       <div class="xai"><h4>Faktor irigasi</h4>{xrows(xai_i,"xt")}</div>
     </div>''')
 
-    # ---- Narasi LLM (aman: template kalau offline/error/halusinasi) ----
+        # ---- Narasi LLM (aman: template kalau offline/error/halusinasi) ----
+    html('<div class="blk">Ringkasan untuk petani</div>')
+    ph_narasi = st.empty()
+    ph_narasi.markdown(
+        '<div class="sk-wrap"><div class="sk-load"><span class="sk-dot"></span>'
+        'Menyusun ringkasan...</div>'
+        '<div class="sk-bar"></div><div class="sk-bar"></div></div>',
+        unsafe_allow_html=True)
     ai_text, src = narrate(nice_fert(fert), conf, mm, xai_f, xai_i, FEAT_ID)
     badge = "Dijelaskan AI" if src == "ai" else "Ringkasan otomatis"
-    html('<div class="blk">Ringkasan untuk petani</div>')
-    html(f'<div class="ai-note"><span class="ai-badge">{badge}</span><p>{ai_text}</p></div>')
+    ph_narasi.markdown(
+        f'<div class="ai-note"><span class="ai-badge">{badge}</span><p>{ai_text}</p></div>',
+        unsafe_allow_html=True)
 
     # ---- Saran tindakan dinamis (Gemini + fallback) dengan loading skeleton ----
     html('<div class="blk">Langkah Tindakan (detail)</div>')
