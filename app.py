@@ -1,9 +1,11 @@
 import json
+import re
 import numpy as np
 import pandas as pd
 import joblib
 import streamlit as st
 from pytorch_tabnet.tab_model import TabNetClassifier, TabNetRegressor
+from llm_narrator import narrate
 
 st.set_page_config(page_title="AgroSense LoRa-X", layout="centered",
                    initial_sidebar_state="collapsed")
@@ -177,6 +179,27 @@ div[data-testid="stNumberInput"] button{background:var(--cream2) !important; col
 .xrow .xp{width:38px; text-align:right; font-size:.8rem; font-weight:600; color:var(--green2) !important;}
 
 .disclaimer{margin-top:26px; padding-top:16px; border-top:1px solid var(--line); font-size:.82rem; color:var(--muted2) !important; line-height:1.6;}
+.ai-note{margin-top:18px; background:var(--white); border:1px solid var(--line); border-left:4px solid var(--sage); border-radius:16px; padding:16px 18px; animation:rise .6s var(--eo) both;}
+.ai-note p{margin:8px 0 0; font-size:.98rem; line-height:1.65; color:var(--text) !important;}
+.ai-badge{display:inline-block; background:var(--green2); color:#fff !important; font-size:.72rem; font-weight:700; padding:4px 10px; border-radius:999px; letter-spacing:.02em;}
+
+/* ---------- AI action steps ---------- */
+.steps{list-style:none; margin:6px 0 0; padding:0;}
+.steps li{position:relative; padding:13px 16px 13px 44px; margin:9px 0; background:var(--white);
+  border:1px solid var(--line); border-radius:12px; font-size:.96rem; line-height:1.6;
+  color:var(--text) !important; animation:rise .5s var(--eo) both;}
+.steps li .n{position:absolute; left:12px; top:13px; width:22px; height:22px; border-radius:6px;
+  background:var(--green); color:#fff !important; font-size:.72rem; font-weight:700; display:grid; place-items:center;}
+
+/* ---------- skeleton loading (saran tindakan) ---------- */
+.sk-wrap{margin:6px 0 0;}
+.sk-load{display:flex; align-items:center; gap:10px; color:var(--muted) !important; font-size:.88rem; margin-bottom:12px;}
+.sk-dot{width:15px; height:15px; border:2px solid var(--cream2); border-top-color:var(--green2); border-radius:50%; animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.sk-bar{height:48px; border-radius:12px; margin:9px 0; border:1px solid var(--line);
+  background:linear-gradient(90deg,var(--cream2) 25%,#f2ecdd 37%,var(--cream2) 63%);
+  background-size:400% 100%; animation:shine 1.3s ease infinite;}
+@keyframes shine{0%{background-position:100% 0}100%{background-position:-100% 0}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -201,6 +224,8 @@ DOSIS = {"Urea":200,"SP-36":150,"KCl":100,"NPK-16-16-16":300,
          "Kapur-Dolomit":1500,"Organik":2000,"None":0}
 LUAS_HA = 0.25
 LUAS_M2 = 2500
+
+GEMINI_MODEL = "gemini-3.6-flash"   # ganti ke flash terbaru bila perlu
 
 @st.cache_resource
 def load_all():
@@ -284,6 +309,110 @@ def recommend(payload):
     return fert, float(proba[j]), mm, top3, xai_f, xai_i, narasi, dosis_txt, warns
 
 # =========================================================
+#  SARAN TINDAKAN DINAMIS  (Gemini API + fallback aman)
+# =========================================================
+def _fallback_steps(fert, mm, dosis_txt, warns, vals):
+    """Saran rule-based. SELALU jalan, dipakai kalau LLM offline/error/halusinasi."""
+    steps = []
+    if fert == "None":
+        steps.append("Belum perlu pemupukan saat ini; pertahankan kondisi hara tanah dan lanjutkan perawatan rutin.")
+    else:
+        s = f"Berikan {nice_fert(fert)} sesuai kebutuhan tanaman."
+        if dosis_txt: s += f" {dosis_txt}."
+        steps.append(s)
+    if mm < 1:
+        steps.append("Tunda penyiraman terlebih dahulu karena tanah masih cukup lembap; cek kembali kelembapan esok hari.")
+    else:
+        liter = mm * LUAS_M2
+        steps.append(f"Siram sekitar {mm:.2f} mm (kurang lebih {liter:.0f} liter untuk lahan 0,25 ha), sebaiknya pada pagi hari agar penyerapan optimal.")
+    for w in warns[:3]:
+        steps.append(w)
+    steps.append("Konsultasikan kembali ke penyuluh pertanian setempat sebelum aplikasi di lapangan.")
+    return steps[:6]
+
+def _allowed_numbers(mm, dosis_txt):
+    """Angka yang boleh muncul di output LLM (anti-ngarang dosis/irigasi)."""
+    nums = set(re.findall(r"\d+", dosis_txt or ""))
+    nums |= {f"{mm:.2f}", f"{mm:.1f}", str(int(round(mm)))}
+    nums.add(str(int(LUAS_M2)))
+    nums.add(f"{mm*LUAS_M2:.0f}")
+    return nums
+
+def _valid_steps(text, allowed):
+    """Tolak kalau ada angka satuan (kg/mm/liter/%) yang tidak ada di input."""
+    for num in re.findall(r"(\d+(?:[.,]\d+)?)\s*(?:kg|mm|liter|l|%)", text.lower()):
+        clean = num.replace(",", ".")
+        if clean not in allowed and clean.rstrip("0").rstrip(".") not in {a.rstrip("0").rstrip(".") for a in allowed}:
+            return False
+    return True
+
+@st.cache_data(show_spinner=False)
+def _ask_gemini(prompt: str, allowed: tuple):
+    try:
+        api_key = st.secrets.get("GEMINI_API_KEY", None)
+    except Exception:
+        api_key = None
+    if not api_key:
+        return None
+    try:
+        from google import genai
+        client = genai.Client(api_key=api_key)
+        resp = client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
+        text = (getattr(resp, "text", "") or "").strip()
+        if text and _valid_steps(text, set(allowed)):
+            return text
+        return None
+    except Exception as e:
+        st.warning(f"Gemini gagal: {e}")   # sementara buat debug, hapus nanti
+        return None
+
+def advise_actions(fert, conf, mm, dosis_txt, warns, vals, top3):
+    """
+    return (steps_list, sumber). sumber: 'ai' | 'otomatis'. Tidak pernah gagal.
+    LLM hanya MERANGKAI saran; angka dosis/irigasi tetap dari model & rule.
+    """
+    fb = _fallback_steps(fert, mm, dosis_txt, warns, vals)
+
+    def _fmt(k, v):
+        if v is None: return None
+        return f"{v:.1f}" if k == "soil_ph" else f"{v:.0f}"
+    kondisi = ", ".join(f"{FEAT_ID.get(k,k)} {_fmt(k, vals.get(k))}"
+                        for k in NUM if vals.get(k) is not None)
+
+    prompt = f"""Kamu penyuluh pertanian profesional yang memberi arahan tindakan kepada petani.
+Berdasarkan hasil analisis lahan di bawah, susun 4-6 langkah tindakan yang JELAS, DETAIL, dan PROFESIONAL dalam bahasa Indonesia.
+
+GAYA:
+- Tiap langkah 1-2 kalimat: sebutkan APA yang dilakukan, BERAPA (bila ada angkanya), KAPAN/CARA, dan ALASAN singkatnya.
+- Bahasa sopan dan mudah dipahami petani, tetapi terdengar seperti anjuran penyuluh, bukan catatan singkat.
+- Urutkan logis: pemupukan, irigasi, penanganan kondisi lahan/peringatan, lalu pemantauan.
+
+ATURAN KERAS:
+- Untuk angka dosis/irigasi/liter/persen, gunakan HANYA angka yang tertera di bawah. Dilarang membuat angka baru.
+- Dilarang menyebut merek pupuk/pestisida atau klaim di luar data. Jangan sebut kata "model", "SHAP", atau istilah teknis.
+- Keluarkan HANYA daftar langkah, satu langkah per baris, tanpa penomoran.
+
+DATA ANALISIS LAHAN:
+- Tanaman: {vals.get("crop","")}; Jenis tanah: {vals.get("soil_type","")}
+- Rekomendasi pupuk: {nice_fert(fert)} (tingkat keyakinan {conf*100:.0f}%)
+- Dosis pupuk anjuran: {dosis_txt or "tidak ada / belum diperlukan"}
+- Kebutuhan irigasi: {mm:.2f} mm/hari (setara {mm*LUAS_M2:.0f} liter untuk lahan 0,25 ha)
+- Kondisi lahan terukur: {kondisi}
+- Peringatan kondisi: {" | ".join(warns) if warns else "tidak ada peringatan khusus"}
+"""
+    allowed = tuple(sorted(_allowed_numbers(mm, dosis_txt)))
+    out = _ask_gemini(prompt, allowed)
+    if not out:
+        return fb, "otomatis"
+    steps = []
+    for line in out.splitlines():
+        s = line.strip().lstrip("-•*0123456789. )").strip()
+        if s:
+            steps.append(s)
+    steps = steps[:6]
+    return (steps, "ai") if steps else (fb, "otomatis")
+
+# =========================================================
 #  HERO
 # =========================================================
 st.markdown("""
@@ -327,6 +456,9 @@ WARN_SVG = ('<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke=
 
 def html(s): st.markdown(s, unsafe_allow_html=True)
 
+def esc(s):
+    return (str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+
 def render_results(vals, fert, conf, mm, top3, xai_f, xai_i, narasi, dosis_txt, warns):
     liter = mm * LUAS_M2
     water_pct = min(mm / 12.0 * 100.0, 100.0)
@@ -364,7 +496,7 @@ def render_results(vals, fert, conf, mm, top3, xai_f, xai_i, narasi, dosis_txt, 
 
     # advice
     dose_html = f'<span class="dose">{dosis_txt}</span>' if dosis_txt else ''
-    html(f'<div class="blk">Rekomendasi tindakan</div>'
+    html(f'<div class="blk">Ringkasan keputusan</div>'
          f'<div class="advice"><p>{narasi}</p>{dose_html}</div>')
 
     # warnings
@@ -395,6 +527,28 @@ def render_results(vals, fert, conf, mm, top3, xai_f, xai_i, narasi, dosis_txt, 
       <div class="xai"><h4>Faktor pupuk</h4>{xrows(xai_f,"xa")}</div>
       <div class="xai"><h4>Faktor irigasi</h4>{xrows(xai_i,"xt")}</div>
     </div>''')
+
+    # ---- Narasi LLM (aman: template kalau offline/error/halusinasi) ----
+    ai_text, src = narrate(nice_fert(fert), conf, mm, xai_f, xai_i, FEAT_ID)
+    badge = "Dijelaskan AI" if src == "ai" else "Ringkasan otomatis"
+    html('<div class="blk">Ringkasan untuk petani</div>')
+    html(f'<div class="ai-note"><span class="ai-badge">{badge}</span><p>{ai_text}</p></div>')
+
+    # ---- Saran tindakan dinamis (Gemini + fallback) dengan loading skeleton ----
+    html('<div class="blk"Langkah tindakan (detail)</div>')
+    ph = st.empty()
+    ph.markdown(
+        '<div class="sk-wrap"><div class="sk-load"><span class="sk-dot"></span>'
+        'Menyusun saran tindakan...</div>'
+        '<div class="sk-bar"></div><div class="sk-bar"></div>'
+        '<div class="sk-bar"></div><div class="sk-bar"></div></div>',
+        unsafe_allow_html=True)
+    steps, ssrc = advise_actions(fert, conf, mm, dosis_txt, warns, vals, top3)
+    sbadge = "Disusun AI" if ssrc == "ai" else "Saran otomatis"
+    items = "".join(f'<li style="animation-delay:{i*0.05:.2f}s"><span class="n">{i+1}</span>{esc(s)}</li>'
+                    for i, s in enumerate(steps))
+    ph.markdown(f'<span class="ai-badge">{sbadge}</span><ul class="steps">{items}</ul>',
+                unsafe_allow_html=True)
 
     html('<p class="disclaimer">Dosis bersifat perkiraan dan wajib disesuaikan dengan '
          'rekomendasi penyuluh setempat. Model dilatih pada data sintetis untuk validasi '
