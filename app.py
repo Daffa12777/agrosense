@@ -501,7 +501,7 @@ def render_results(vals, fert, conf, mm, top3, xai_f, xai_i, narasi, dosis_txt, 
 
     # warnings
     if warns:
-        html('<div class="blk">Peringatan kondisi lahan</div>')
+        html('<div class="blk">Langkah tindakan (detail)</div>')
         for i, w in enumerate(warns):
             html(f'<div class="warn" style="animation-delay:{i*0.05:.2f}s">{WARN_SVG}<span>{w}</span></div>')
 
