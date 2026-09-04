@@ -42,16 +42,25 @@ def _ask_llm(prompt: str, allowed: tuple):
         api_key = None
     if not api_key:
         return None
-    try:
-        import google.generativeai as genai
-        genai.configure(api_key=api_key)
-        resp = genai.GenerativeModel(MODEL).generate_content(prompt)
-        text = (getattr(resp, "text", "") or "").strip()
-        if text and _valid(text, set(allowed)):
-            return text
-        return None
-    except Exception:
-        return None
+    import time
+    from google import genai
+    client = genai.Client(api_key=api_key)
+    last_err = None
+    for attempt in range(4):
+        try:
+            resp = client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
+            text = (getattr(resp, "text", "") or "").strip()
+            if text and _valid(text, set(allowed)):
+                return text
+            return None
+        except Exception as e:
+            last_err = e
+            if "503" in str(e) or "UNAVAILABLE" in str(e) or "429" in str(e):
+                time.sleep(2 * (attempt + 1))
+                continue
+            break
+    st.warning(f"Gemini gagal (narasi): {last_err}")
+    return None
 
 def narrate(fert_label, conf, mm, xai_f, xai_i, feat_id):
     """return (teks, sumber). sumber: 'ai' | 'template'. Tidak pernah gagal."""

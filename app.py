@@ -354,17 +354,25 @@ def _ask_gemini(prompt: str, allowed: tuple):
         api_key = None
     if not api_key:
         return None
-    try:
-        from google import genai
-        client = genai.Client(api_key=api_key)
-        resp = client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
-        text = (getattr(resp, "text", "") or "").strip()
-        if text and _valid_steps(text, set(allowed)):
-            return text
-        return None
-    except Exception as e:
-        st.warning(f"Gemini gagal: {e}")   # sementara buat debug, hapus nanti
-        return None
+    import time
+    from google import genai
+    client = genai.Client(api_key=api_key)
+    last_err = None
+    for attempt in range(4):
+        try:
+            resp = client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
+            text = (getattr(resp, "text", "") or "").strip()
+            if text and _valid_steps(text, set(allowed)):
+                return text
+            return None
+        except Exception as e:
+            last_err = e
+            if "503" in str(e) or "UNAVAILABLE" in str(e) or "429" in str(e):
+                time.sleep(2 * (attempt + 1))   # 2s,4s,6s
+                continue
+            break
+    st.warning(f"Gemini gagal: {last_err}")
+    return None
 
 def advise_actions(fert, conf, mm, dosis_txt, warns, vals, top3):
     """
